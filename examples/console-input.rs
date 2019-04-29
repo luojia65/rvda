@@ -10,6 +10,5 @@ fn main() {
             ins.push((a << 4) + b)
         }
     }
-    rvda::dump(std::io::Cursor::new(ins))
-        .expect("");
+    rvda::dump(&mut std::io::Cursor::new(ins)).unwrap();
 }

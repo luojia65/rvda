@@ -38,55 +38,61 @@ const FUNCT3_LOAD_LW: u32 = 0b010;
 const FUNCT3_LOAD_LBU: u32 = 0b100;
 const FUNCT3_LOAD_LHU: u32 = 0b101;
 
+const FUNCT3_SYSTEM_PRIV: u32 = 0b000;
 const FUNCT3_SYSTEM_CSRRW: u32 = 0b001;
 const FUNCT3_SYSTEM_CSRRS: u32 = 0b010;
 const FUNCT3_SYSTEM_CSRRC: u32 = 0b011;
 const FUNCT3_SYSTEM_CSRRWI: u32 = 0b101;
 const FUNCT3_SYSTEM_CSRRSI: u32 = 0b110;
 const FUNCT3_SYSTEM_CSRRCI: u32 = 0b111;
-const FUNCT3_SYSTEM_ECALL_EBREAK: u32 = 0b000;
 
-pub fn dump<I: Input>(mut input: I) -> std::io::Result<()> {
+pub fn dump<I: Input>(input: &mut I) -> std::io::Result<()> {
     loop {
-        let ins = match input.read_u16() {
-            Ok(ins) => ins,
-            Err(_err) => {/*println!("{:?}", err);*/ return Ok(())},
+        match dump0(input) {
+            Ok(()) => continue,
+            Err(ref e) if e.kind() == ErrorKind::UnexpectedEof => return Ok(()),
+            Err(e) => return Err(e),
         };
-        if ins & 0b11 != 0b11 {
-            dump_u16(ins);
-            continue;
-        }
-        if ins & 0b11100 != 0b11100 {
-            let ins = (ins as u32) + ((input.read_u16()? as u32) << 16);
-            dump_u32(ins);
-            continue;
-        }
-        if ins & 0b100000 == 0 {
-            let ins = (ins as u64) 
-                + ((input.read_u16()? as u64) << 16)
-                + ((input.read_u16()? as u64) << 32);
-            dump_u48(ins);
-            continue;
-        }
-        if ins & 0b1000000 == 0 {
-            let ins = (ins as u64) 
-                + ((input.read_u16()? as u64) << 16) 
-                + ((input.read_u32()? as u64) << 32);
-            dump_u64(ins);
-            continue;
-        }
-        let bits = (ins & 0b01110000_00000000) >> 12;
-        if bits != 0b0111 {
-            let mut buf = Vec::new();
-            buf.push(ins);
-            for _ in 0..(4 + 2 * bits) {
-                buf.push(input.read_u16()?)
-            }
-            dump_u80_u176(&buf);
-            continue;
-        }
-        dump_u192_reserved()
     }
+}
+
+fn dump0<I: Input>(input: &mut I) -> std::io::Result<()> {
+    let ins = input.read_u16()?;
+    if ins & 0b11 != 0b11 {
+        dump_u16(ins);
+        return Ok(());
+    }
+    if ins & 0b11100 != 0b11100 {
+        let ins = (ins as u32) + ((input.read_u16()? as u32) << 16);
+        dump_u32(ins);
+        return Ok(());
+    }
+    if ins & 0b100000 == 0 {
+        let ins = (ins as u64) 
+            + ((input.read_u16()? as u64) << 16)
+            + ((input.read_u16()? as u64) << 32);
+        dump_u48(ins);
+        return Ok(());
+    }
+    if ins & 0b1000000 == 0 {
+        let ins = (ins as u64) 
+            + ((input.read_u16()? as u64) << 16) 
+            + ((input.read_u32()? as u64) << 32);
+        dump_u64(ins);
+        return Ok(());
+    }
+    let bits = (ins & 0b01110000_00000000) >> 12;
+    if bits != 0b0111 {
+        let mut buf = Vec::new();
+        buf.push(ins);
+        for _ in 0..(4 + 2 * bits) {
+            buf.push(input.read_u16()?)
+        }
+        dump_u80_u176(&buf);
+        return Ok(());
+    }
+    dump_u192_reserved();
+    Ok(())
 }
 
 fn dump_u16(src: u16) {
@@ -101,7 +107,7 @@ fn dump_u32(src: u32) {
     let rs2 = format!("x{}", (src >> 20) & 0b1_1111);
     let funct3 = (src >> 12) & 0b111;
     let shamt = (src >> 20) & 0b1_1111;
-    let imm110 = (src >> 20) & 0b111_1111_1111;
+    let imm110 = (src >> 20) & 0b1111_1111_1111;
     let funct7 = (src >> 25) & 0b111_1111;
     let imm3112 = (src >> 12) & 0b1111_1111_1111_1111_1111;
     let imm11540 = ((src >> 7) & 0b11111) | ((src >> 25) & 0b1111111);
@@ -136,14 +142,14 @@ fn dump_u32(src: u32) {
                 FUNCT3_SYSTEM_CSRRWI => "csrrwi",
                 FUNCT3_SYSTEM_CSRRSI => "csrrsi",
                 FUNCT3_SYSTEM_CSRRCI => "csrrci",
-                FUNCT3_SYSTEM_ECALL_EBREAK => match imm110 { 
+                FUNCT3_SYSTEM_PRIV => match imm110 { 
                     0 => "ecall",
                     1 => "ebreak",
-                    _ => {""} ,
+                    _ => {println!("{}", imm110); ""} ,
                 }
                 _ => unreachable!(),
             };
-            if funct3 == FUNCT3_SYSTEM_ECALL_EBREAK {
+            if funct3 == FUNCT3_SYSTEM_PRIV {
                 println!("{}", name);
             } else {
                 println!("{} {}, {}, {}", name, rd, rs1, imm110);
@@ -249,7 +255,6 @@ fn dump_u192_reserved() {
 }
 
 pub trait Input {
-
     fn read_u8(&mut self) -> std::io::Result<u8>;
 
     fn read_u16(&mut self) -> std::io::Result<u16>;
