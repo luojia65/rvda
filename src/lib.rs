@@ -121,9 +121,6 @@ fn dump_u16(src: u16, ptr: usize) {
     let uimm5276 = (((src >> 9) & 0b1111) << 2) | (((src >> 7) & 0b11) << 6);
     // print!(" {:02b}  {:03b}  ", opcode, inst1513);
     match (opcode, inst1513) {
-        (OPCODE_C0, 0b001) => {
-            println!("c.jal {}", imm114981067315);
-        },
         (OPCODE_C0, 0b100) => {
             let inst1110 = (src >> 10) & 0b11;
             let inst65 = (src >> 5) & 0b11;
@@ -142,12 +139,15 @@ fn dump_u16(src: u16, ptr: usize) {
                 _ => {},
             };
         },
-        (OPCODE_C0, 0b101) => {
-            println!("c.j {}", imm114981067315);
-        },
         (OPCODE_C0, _) => {println!()},
         (OPCODE_C1, 0b000) => {
             println!("c.addi {}, {}, #0x{:02x}; {}", rs1, rs1, nzimm540, nzimm540);
+        },
+        (OPCODE_C1, 0b001) => {
+            println!("c.jal #0x{:03X} ; {}", imm114981067315, imm114981067315);
+        },
+        (OPCODE_C1, 0b101) => {
+            println!("c.j #0x{:03X} ; {}", imm114981067315, imm114981067315);
         },
         (OPCODE_C1, _) => {println!()},
         (OPCODE_C2, 0b110) => {
