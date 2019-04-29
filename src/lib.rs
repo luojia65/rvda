@@ -10,6 +10,10 @@ const OPCODE_JALR: u32 =     0b110_0111;
 const OPCODE_JAL: u32 =      0b110_1111;
 const OPCODE_SYSTEM: u32 =   0b111_0011; 
 
+const OPCODE_C0: u16 =  0b00;
+const OPCODE_C1: u16 =  0b01;
+const OPCODE_C2: u16 =  0b10;
+
 const FUNCT3_OP_ADD_SUB: u32 = 0b000;
 const FUNCT3_OP_SLL: u32   = 0b001;
 const FUNCT3_OP_SLT: u32   = 0b010;
@@ -100,8 +104,58 @@ fn dump0<I: Input>(input: &mut I, ptr: &mut usize) -> std::io::Result<()> {
 }
 
 fn dump_u16(src: u16, ptr: usize) {
-    print!("{:x}:\t{:04x}\t", ptr, src);
-    println!();
+    print!("{:x}:\t{:04x}\t\t", ptr, src);
+    let opcode = src & 0b11;
+    let inst1513 = (src >> 13) & 0b111;
+    let nzimm540 = ((src >> 2) & 0b11111) | (((src >> 12) & 0b1) << 5);
+    let imm540 = ((src >> 2) & 0b11111) | (((src >> 12) & 0b1) << 5);
+    let imm114981067315 = 
+        (((src >> 3) & 0b11) << 1) | (((src >> 11) & 0b1) << 3) | 
+        (((src >> 2) & 0b1) << 4) | (((src >> 7) & 0b1) << 5) | 
+        (((src >> 6) & 0b1) << 6) | (((src >> 9) & 0b11) << 8) | 
+        (((src >> 8) & 0b1) << 9) | (((src >> 11) & 0b1) << 10);
+    let rd_c = (src >> 2) & 0b111; 
+    let rs2_c = (src >> 2) & 0b111;
+    let rs1 = format!("x{}", (src >> 7) & 0b1_1111);
+    let rs2 = format!("x{}", (src >> 2) & 0b1_1111);
+    let uimm5276 = (((src >> 9) & 0b1111) << 2) | (((src >> 7) & 0b11) << 6);
+    // print!(" {:02b}  {:03b}  ", opcode, inst1513);
+    match (opcode, inst1513) {
+        (OPCODE_C0, 0b001) => {
+            println!("c.jal {}", imm114981067315);
+        },
+        (OPCODE_C0, 0b100) => {
+            let inst1110 = (src >> 10) & 0b11;
+            let inst65 = (src >> 5) & 0b11;
+            match inst1110 {
+                0b10 => println!("c.andi {}, {}, #0x{:03X} ; {}", rd_c, rd_c, imm540, imm540),
+                0b11 => {
+                    let name = match inst65 {
+                        0b00 => "c.sub",
+                        0b01 => "c.xor",
+                        0b10 => "c.or",
+                        0b11 => "c.and",
+                        _ => unreachable!()
+                    };
+                    println!("{} {}, {}, {}", name, rd_c, rd_c, rs2_c);
+                },
+                _ => {},
+            };
+        },
+        (OPCODE_C0, 0b101) => {
+            println!("c.j {}", imm114981067315);
+        },
+        (OPCODE_C0, _) => {println!()},
+        (OPCODE_C1, 0b000) => {
+            println!("c.addi {}, {}, #0x{:02x}; {}", rs1, rs1, nzimm540, nzimm540);
+        },
+        (OPCODE_C1, _) => {println!()},
+        (OPCODE_C2, 0b110) => {
+            println!("c.swsp {}, #0x{:02x}; {}", rs2, uimm5276, uimm5276);
+        },
+        (OPCODE_C2, _) => {println!()},
+        _ => unreachable!()
+    }
 }
 
 fn dump_u32(src: u32, ptr: usize) {
