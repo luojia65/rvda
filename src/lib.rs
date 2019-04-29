@@ -1,16 +1,14 @@
-#![allow(unused)]
-
-const OPCODE_LOAD: u32 =     0b000_0011; //
+const OPCODE_LOAD: u32 =     0b000_0011; 
 const OPCODE_MISC_MEM: u32 = 0b000_1111;
-const OPCODE_OP_IMM: u32 =   0b001_0011; //
-const OPCODE_AUIPC: u32 =    0b001_0111; //
-const OPCODE_STORE: u32 =    0b010_0011; // 
-const OPCODE_OP: u32 =       0b011_0011; //
-const OPCODE_LUI: u32 =      0b011_0111; //
-const OPCODE_BRANCH: u32 =   0b110_0011; //
-const OPCODE_JALR: u32 =     0b110_0111; //
-const OPCODE_JAL: u32 =      0b110_1111; //
-const OPCODE_SYSTEM: u32 =   0b111_0011;
+const OPCODE_OP_IMM: u32 =   0b001_0011; 
+const OPCODE_AUIPC: u32 =    0b001_0111; 
+const OPCODE_STORE: u32 =    0b010_0011; 
+const OPCODE_OP: u32 =       0b011_0011; 
+const OPCODE_LUI: u32 =      0b011_0111; 
+const OPCODE_BRANCH: u32 =   0b110_0011; 
+const OPCODE_JALR: u32 =     0b110_0111; 
+const OPCODE_JAL: u32 =      0b110_1111;
+const OPCODE_SYSTEM: u32 =   0b111_0011; 
 
 const FUNCT3_OP_ADD_SUB: u32 = 0b000;
 const FUNCT3_OP_SLL: u32   = 0b001;
@@ -236,7 +234,27 @@ fn dump_u32(src: u32, ptr: usize) {
                 }
             };
             println!("{} {}, {}, {}", name, rd, rs1, rs2);
-        }
+        },
+        OPCODE_MISC_MEM => {
+            match funct3 {
+                0 => {
+                    print!("fence ");
+                    if src & (1 << 20) > 0 { print!("sw, ") };
+                    if src & (1 << 21) > 0 { print!("sr, ") };
+                    if src & (1 << 22) > 0 { print!("so, ") };
+                    if src & (1 << 23) > 0 { print!("si, ") };
+                    if src & (1 << 24) > 0 { print!("pw, ") };
+                    if src & (1 << 25) > 0 { print!("pr, ") };
+                    if src & (1 << 26) > 0 { print!("po, ") };
+                    if src & (1 << 27) > 0 { print!("pi, ") };
+                    println!()
+                },
+                1 => {
+                    println!("fence.i");
+                },
+                _ => unreachable!()
+            }
+        },
         _ => println!()
     }
 }
