@@ -47,8 +47,9 @@ const FUNCT3_SYSTEM_CSRRSI: u32 = 0b110;
 const FUNCT3_SYSTEM_CSRRCI: u32 = 0b111;
 
 pub fn dump<I: Input>(input: &mut I) -> std::io::Result<()> {
+    let mut ptr = 0;
     loop {
-        match dump0(input) {
+        match dump0(input, &mut ptr) {
             Ok(()) => continue,
             Err(ref e) if e.kind() == ErrorKind::UnexpectedEof => return Ok(()),
             Err(e) => return Err(e),
@@ -56,29 +57,33 @@ pub fn dump<I: Input>(input: &mut I) -> std::io::Result<()> {
     }
 }
 
-fn dump0<I: Input>(input: &mut I) -> std::io::Result<()> {
+fn dump0<I: Input>(input: &mut I, ptr: &mut usize) -> std::io::Result<()> {
     let ins = input.read_u16()?;
     if ins & 0b11 != 0b11 {
-        dump_u16(ins);
+        dump_u16(ins, *ptr);
+        *ptr += 2;
         return Ok(());
     }
     if ins & 0b11100 != 0b11100 {
         let ins = (ins as u32) + ((input.read_u16()? as u32) << 16);
-        dump_u32(ins);
+        dump_u32(ins, *ptr);
+        *ptr += 4;
         return Ok(());
     }
     if ins & 0b100000 == 0 {
         let ins = (ins as u64) 
             + ((input.read_u16()? as u64) << 16)
             + ((input.read_u16()? as u64) << 32);
-        dump_u48(ins);
+        dump_u48(ins, *ptr);
+        *ptr += 6;
         return Ok(());
     }
     if ins & 0b1000000 == 0 {
         let ins = (ins as u64) 
             + ((input.read_u16()? as u64) << 16) 
             + ((input.read_u32()? as u64) << 32);
-        dump_u64(ins);
+        dump_u64(ins, *ptr);
+        *ptr += 8;
         return Ok(());
     }
     let bits = (ins & 0b01110000_00000000) >> 12;
@@ -88,19 +93,21 @@ fn dump0<I: Input>(input: &mut I) -> std::io::Result<()> {
         for _ in 0..(4 + 2 * bits) {
             buf.push(input.read_u16()?)
         }
-        dump_u80_u176(&buf);
+        dump_u80_u176(&buf, *ptr);
+        *ptr += ((4 + 2 * bits) * 2) as usize;
         return Ok(());
     }
     dump_u192_reserved();
     Ok(())
 }
 
-fn dump_u16(src: u16) {
-    println!("u16: 0x{:04X}", src);
+fn dump_u16(src: u16, ptr: usize) {
+    print!("{:x}:\t{:04x}\t", ptr, src);
+    println!();
 }
 
-fn dump_u32(src: u32) {
-    print!("u32: 0x{:08X}\t", src);
+fn dump_u32(src: u32, ptr: usize) {
+    print!("{:x}:\t{:08x}\t", ptr, src);
     let opcode = src & 0b111_1111;
     let rd = format!("x{}", (src >> 7) & 0b1_1111);
     let rs1 = format!("x{}", (src >> 15) & 0b1_1111);
@@ -109,7 +116,7 @@ fn dump_u32(src: u32) {
     let shamt = (src >> 20) & 0b1_1111;
     let imm110 = (src >> 20) & 0b1111_1111_1111;
     let funct7 = (src >> 25) & 0b111_1111;
-    let imm3112 = (src >> 12) & 0b1111_1111_1111_1111_1111;
+    let imm3112 = ((src >> 12) & 0b1111_1111_1111_1111_1111) << 12;
     let imm11540 = ((src >> 7) & 0b11111) | ((src >> 25) & 0b1111111);
     let imm20101111912 = {
         let val = (((src >> 21) & 0b11_1111_1111) | 
@@ -123,10 +130,10 @@ fn dump_u32(src: u32) {
     };
     match opcode {
         OPCODE_LUI => {
-            println!("lui {}, #{}", rd, imm3112);
+            println!("lui {}, #0x{:08X} ; {}", rd, imm3112, imm3112);
         },
         OPCODE_AUIPC => {
-            println!("auipc {}, #{}", rd, imm3112);
+            println!("auipc {}, #0x{:08X}; {}", rd, imm3112, imm3112);
         },
         OPCODE_JAL => {
             println!("jal {}, #{}", rd, imm20101111912);
@@ -234,18 +241,18 @@ fn dump_u32(src: u32) {
     }
 }
 
-fn dump_u48(src: u64) {
-    println!("u48: 0x{:016X}", src);
+fn dump_u48(src: u64, ptr: usize) {
+    println!("{:x}:\t{:016x}\t", ptr, src);
 }
 
-fn dump_u64(src: u64) {
-    println!("u64: 0x{:032X}", src);
+fn dump_u64(src: u64, ptr: usize) {
+    println!("{:x}:\t{:032x}\t", ptr, src);
 }
 
-fn dump_u80_u176(src: &[u16]) {
-    print!("u{}: 0x", src.len()*16);
+fn dump_u80_u176(src: &[u16], ptr: usize) {
+    print!("{:x}:\t0x", ptr);
     for word in src {
-        print!("{:02X}", word);
+        print!("{:02x}", word);
     }
     println!();
 }
