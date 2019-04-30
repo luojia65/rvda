@@ -107,21 +107,85 @@ fn dump_u16(src: u16, ptr: usize) {
     print!("{:x}:\t{:04x}\t\t", ptr, src);
     let opcode = src & 0b11;
     let inst1513 = (src >> 13) & 0b111;
-    let nzimm540 = ((src >> 2) & 0b11111) | (((src >> 12) & 0b1) << 5);
+    let nzimm540 = {
+        let res = (src >> 2) as i16 & 0b11111;
+        if (src >> 12) & 0b1 > 0 { -(res + 1) } else { res }
+    };
+    let nzimm946875 = {
+        let res = (
+            (((src >> 6) & 0b1) << 4) | (((src >> 5) & 0b1) << 6) |
+            (((src >> 3) & 0b11) << 7) | (((src >> 2) & 0b1) << 5)
+        ) as i16;
+        if (src >> 12) & 0b1 > 0 { -(res + 1) } else { res }
+    };
+    let nzuimm171612 = {
+        let src = src as u32;
+        (((src >> 12) & 0b1) << 17) | (((src >> 2) & 0b11111) << 12)
+    };
+    let nzuimm540 = ((src >> 2) & 0b11111) | (((src >> 12) & 0b1) << 5);
     let imm540 = ((src >> 2) & 0b11111) | (((src >> 12) & 0b1) << 5);
     let imm114981067315 = 
         (((src >> 3) & 0b11) << 1) | (((src >> 11) & 0b1) << 3) | 
         (((src >> 2) & 0b1) << 4) | (((src >> 7) & 0b1) << 5) | 
         (((src >> 6) & 0b1) << 6) | (((src >> 9) & 0b11) << 8) | 
         (((src >> 8) & 0b1) << 9) | (((src >> 11) & 0b1) << 10);
+    let imm84376215 = (((src >> 12) & 0b1) << 8) | (((src >> 10) & 0b11) << 3) |
+        (((src >> 5) & 0b11) << 6) | (((src >> 3) & 0b11) << 1) |
+        (((src >> 2) & 0b11) << 5);
     let rd_c = (src >> 2) & 0b111; 
+    let rs1_c = (src >> 7) & 0b111;
     let rs2_c = (src >> 2) & 0b111;
+    let rd = format!("x{}", (src >> 7) & 0b1_1111);
     let rs1 = format!("x{}", (src >> 7) & 0b1_1111);
     let rs2 = format!("x{}", (src >> 2) & 0b1_1111);
     let uimm5276 = (((src >> 9) & 0b1111) << 2) | (((src >> 7) & 0b11) << 6);
+    let uimm5376 = (((src >> 10) & 0b111) << 3) | (((src >> 5) & 0b11) << 6);
+    let uimm5326 = (((src >> 11) & 0b111) << 3) | (((src >> 5) & 0b1) << 6) | 
+        (((src >> 6) & 0b1) << 2);
+    let uimm54386 = (((src >> 12) & 0b1) << 5) | (((src >> 5) & 0b11) << 3) |
+        (((src >> 2) & 0b111) << 6);
+    let uimm54276 = (((src >> 12) & 0b1) << 5) | (((src >> 4) & 0b111) << 2) | 
+        (((src >> 2) & 0b111) << 6);
+    let uimm5386 = (((src >> 10) & 0b111) << 3) | (((src >> 7) & 0b111) << 6);
     // print!(" {:02b}  {:03b}  ", opcode, inst1513);
     match (opcode, inst1513) {
-        (OPCODE_C0, 0b100) => {
+        (OPCODE_C0, 0b000) => println!("!! illegal"),
+        (OPCODE_C0, 0b001) => {
+            println!("c.fld {}, {}, #0x{:02X} ; {}", rd_c, rs1_c, uimm5376, uimm5376);
+        },
+        (OPCODE_C0, 0b010) => {
+            println!("c.lw {}, {}, #0x{:02X} ; {}", rd_c, rs1_c, uimm5326, uimm5326);
+        },
+        (OPCODE_C0, 0b011) => {
+            println!("c.flw {}, {}, #0x{:02X} ; {}", rd_c, rs1_c, uimm5326, uimm5326);
+        },
+        (OPCODE_C0, 0b100) => println!("!! reserved"),
+        (OPCODE_C0, 0b101) => {
+            println!("c.fsd {}, {}, #0x{:02X} ; {}", rd_c, rs1_c, uimm5376, uimm5376);
+        },
+        (OPCODE_C0, 0b110) => {
+            println!("c.sw {}, {}, #0x{:02X} ; {}", rd_c, rs1_c, uimm5326, uimm5326);
+        },
+        (OPCODE_C0, 0b111) => {
+            println!("c.fsw {}, {}, #0x{:02X} ; {}", rd_c, rs1_c, uimm5326, uimm5326);
+        },
+        (OPCODE_C0, _) => unreachable!(),
+        (OPCODE_C1, 0b000) => {
+            println!("c.addi {}, {}, #0x{:02x}; {}", rd, rs1, nzimm540, nzimm540);
+        },
+        (OPCODE_C1, 0b001) => {
+            println!("c.jal #0x{:03X} ; {}", imm114981067315, imm114981067315);
+        },
+        (OPCODE_C1, 0b010) => {
+            println!("c.li {}, #0x{:02X} ; {}", rd, imm540, imm540);
+        },
+        (OPCODE_C1, 0b011) if ((src >> 7) & 0b1_1111) == 2 => {
+            println!("c.addi16sp #0x{:03X} ; {}", nzimm946875, nzimm946875);
+        },
+        (OPCODE_C1, 0b011) => {
+            println!("c.lui {}, #0x{:05X} ; {}", rd, nzuimm171612, nzuimm171612);
+        },
+        (OPCODE_C1, 0b100) => {
             let inst1110 = (src >> 10) & 0b11;
             let inst65 = (src >> 5) & 0b11;
             match inst1110 {
@@ -139,19 +203,50 @@ fn dump_u16(src: u16, ptr: usize) {
                 _ => {},
             };
         },
-        (OPCODE_C0, _) => {println!()},
-        (OPCODE_C1, 0b000) => {
-            println!("c.addi {}, {}, #0x{:02x}; {}", rs1, rs1, nzimm540, nzimm540);
-        },
-        (OPCODE_C1, 0b001) => {
-            println!("c.jal #0x{:03X} ; {}", imm114981067315, imm114981067315);
-        },
         (OPCODE_C1, 0b101) => {
             println!("c.j #0x{:03X} ; {}", imm114981067315, imm114981067315);
         },
-        (OPCODE_C1, _) => {println!()},
+        (OPCODE_C1, 0b110) => {
+            println!("c.beqz {}, #0x{:03X} ; {}", rs1_c, imm84376215, imm84376215);
+        },
+        (OPCODE_C1, 0b111) => {
+            println!("c.bnez {}, #0x{:03X} ; {}", rs1_c, imm84376215, imm84376215);
+        },
+        (OPCODE_C1, _) => unreachable!(),
+        (OPCODE_C2, 0b000) if nzuimm540 == 0 => {
+            println!("c.slli64 {}, {}", rd, rs1);
+        },
+        (OPCODE_C2, 0b000) => {
+            println!("c.slli {}, {}, #0x{:02X} ; {}", rd, rs1, nzuimm540, nzuimm540);
+        },
+        (OPCODE_C2, 0b001) => {
+            println!("c.fldsp {}, #0x{:02X} ; {}", rd, uimm54386, uimm54386);
+        },
+        (OPCODE_C2, 0b010) => {
+            println!("c.lwsp {}, #0x{:02X} ; {}", rd, uimm54276, uimm54276);
+        },
+        (OPCODE_C2, 0b011) => {
+            println!("c.flwsp {}, #0x{:02X} ; {}", rd, uimm54276, uimm54276);
+        },
+        (OPCODE_C2, 0b100) => {
+            let b12 = (src >> 12) & 0b1;
+            match (b12, (src >> 7) & 0b1_1111, (src >> 2) & 0b1_1111) {
+                (0, _, 0) => println!("c.jr {}", rs1),
+                (0, _, _) => println!("c.mv {}, {}", rd, rs2),
+                (1, 0, 0) => println!("c.ebreak"),
+                (1, _, 0) => println!("c.jalr {}", rs1),
+                (1, _, _) => println!("c.add {}, {}, {}", rd, rs1, rs2),
+                (_, _, _) => unreachable!()
+            } 
+        },
+        (OPCODE_C2, 0b101) => {
+            println!("c.fsdsp {}, #0x{:03X} ; {}", rd, uimm5386, uimm5386);
+        },
         (OPCODE_C2, 0b110) => {
-            println!("c.swsp {}, #0x{:02x}; {}", rs2, uimm5276, uimm5276);
+            println!("c.swsp {}, #0x{:02X}; {}", rs2, uimm5276, uimm5276);
+        },
+        (OPCODE_C2, 0b111) => {
+            println!("c.fswsp {}, #0x{:03X}; {}", rs2, uimm5386, uimm5386);
         },
         (OPCODE_C2, _) => {println!()},
         _ => unreachable!()
@@ -188,10 +283,10 @@ fn dump_u32(src: u32, ptr: usize) {
             println!("auipc {}, #0x{:08X}; {}", rd, imm3112, imm3112);
         },
         OPCODE_JAL => {
-            println!("jal {}, #{}", rd, imm20101111912);
+            println!("jal {}, #0x{:08X} ; {}", rd, imm20101111912, imm20101111912);
         },
         OPCODE_JALR => {
-            println!("jalr {}, {}, #{}", rd, rs1, imm110);
+            println!("jalr {}, {}, #0x{:03X} ; {}", rd, rs1, imm110, imm110);
         },
         OPCODE_SYSTEM => {
             let name = match funct3 {
@@ -204,7 +299,7 @@ fn dump_u32(src: u32, ptr: usize) {
                 FUNCT3_SYSTEM_PRIV => match imm110 { 
                     0 => "ecall",
                     1 => "ebreak",
-                    _ => {println!("{}", imm110); ""} ,
+                    _ => {print!("{}", imm110); ""} ,
                 }
                 _ => unreachable!(),
             };
@@ -242,7 +337,7 @@ fn dump_u32(src: u32, ptr: usize) {
                 FUNCT3_BRANCH_BGE => "bge", 
                 FUNCT3_BRANCH_BLTU => "bltu", 
                 FUNCT3_BRANCH_BGEU => "bgeu",
-                _ => unreachable!(), 
+                _ => { " " }, 
             };
             println!("{} {}, {}, #{}", name, rs1, rs2, imm121054111);
         },
@@ -264,7 +359,7 @@ fn dump_u32(src: u32, ptr: usize) {
             match funct3 {
                 FUNCT3_OP_ADD_SUB | FUNCT3_OP_SLT | FUNCT3_OP_SLTU | 
                 FUNCT3_OP_XOR | FUNCT3_OP_OR | FUNCT3_OP_AND => {
-                    println!("{} {}, {}, #{}", name, rd, rs1, imm110);
+                    println!("{} {}, {}, #0x{:03X} ; {}", name, rd, rs1, imm110, imm110);
                 },
                 _ => {
                     println!("{} {}, {}, {}", name, rd, rs1, shamt);
