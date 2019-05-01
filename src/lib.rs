@@ -299,7 +299,11 @@ fn dump_u32(src: u32, ptr: usize) {
                 FUNCT3_SYSTEM_PRIV => match imm110 { 
                     0 => "ecall",
                     1 => "ebreak",
-                    _ => {print!("{}", imm110); ""} ,
+                    0b0000000_00010 => "uret",
+                    0b0001000_00010 => "sret",
+                    0b0011000_00010 => "mret",
+                    0b0001000_00101 => "wfi",
+                    _ => unreachable!(),
                 }
                 _ => unreachable!(),
             };
