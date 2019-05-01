@@ -132,9 +132,9 @@ fn dump_u16(src: u16, ptr: usize) {
     let imm84376215 = (((src >> 12) & 0b1) << 8) | (((src >> 10) & 0b11) << 3) |
         (((src >> 5) & 0b11) << 6) | (((src >> 3) & 0b11) << 1) |
         (((src >> 2) & 0b11) << 5);
-    let rd_c = (src >> 2) & 0b111; 
-    let rs1_c = (src >> 7) & 0b111;
-    let rs2_c = (src >> 2) & 0b111;
+    let rd_c = format!("x{}", 8 + ((src >> 2) & 0b111)); 
+    let rs1_c = format!("x{}", 8 + ((src >> 7) & 0b111)); 
+    let rs2_c = format!("x{}", 8 + ((src >> 2) & 0b111)); 
     let rd = format!("x{}", (src >> 7) & 0b1_1111);
     let rs1 = format!("x{}", (src >> 7) & 0b1_1111);
     let rs2 = format!("x{}", (src >> 2) & 0b1_1111);
@@ -147,8 +147,13 @@ fn dump_u16(src: u16, ptr: usize) {
     let uimm54276 = (((src >> 12) & 0b1) << 5) | (((src >> 4) & 0b111) << 2) | 
         (((src >> 2) & 0b111) << 6);
     let uimm5386 = (((src >> 10) & 0b111) << 3) | (((src >> 7) & 0b111) << 6);
+    let nzuimm549623 = (((src >> 11) & 0b11) << 4) | (((src >> 7) & 0b1111) << 6) |
+        (((src >> 6) & 0b1) << 2) | (((src >> 5) & 0b1) << 3);
     // print!(" {:02b}  {:03b}  ", opcode, inst1513);
     match (opcode, inst1513) {
+        (OPCODE_C0, 0b000) if nzuimm549623 != 0 => {
+            println!("c.addi4spn {}, #0x{:03X} ; {}", rd_c, nzuimm549623, nzuimm549623);
+        },
         (OPCODE_C0, 0b000) => println!("!! illegal"),
         (OPCODE_C0, 0b001) => {
             println!("c.fld {}, {}, #0x{:02X} ; {}", rd_c, rs1_c, uimm5376, uimm5376);
@@ -171,7 +176,7 @@ fn dump_u16(src: u16, ptr: usize) {
         },
         (OPCODE_C0, _) => unreachable!(),
         (OPCODE_C1, 0b000) => {
-            println!("c.addi {}, {}, #0x{:02x}; {}", rd, rs1, nzimm540, nzimm540);
+            println!("c.addi {}, #0x{:02X}; {}", rd, nzimm540, nzimm540);
         },
         (OPCODE_C1, 0b001) => {
             println!("c.jal #0x{:03X} ; {}", imm114981067315, imm114981067315);
@@ -189,7 +194,7 @@ fn dump_u16(src: u16, ptr: usize) {
             let inst1110 = (src >> 10) & 0b11;
             let inst65 = (src >> 5) & 0b11;
             match inst1110 {
-                0b10 => println!("c.andi {}, {}, #0x{:03X} ; {}", rd_c, rd_c, imm540, imm540),
+                0b10 => println!("c.andi {}, #0x{:03X} ; {}", rd_c, imm540, imm540),
                 0b11 => {
                     let name = match inst65 {
                         0b00 => "c.sub",
@@ -198,7 +203,7 @@ fn dump_u16(src: u16, ptr: usize) {
                         0b11 => "c.and",
                         _ => unreachable!()
                     };
-                    println!("{} {}, {}, {}", name, rd_c, rd_c, rs2_c);
+                    println!("{} {}, {}", name, rd_c, rs2_c);
                 },
                 _ => {},
             };
@@ -214,10 +219,10 @@ fn dump_u16(src: u16, ptr: usize) {
         },
         (OPCODE_C1, _) => unreachable!(),
         (OPCODE_C2, 0b000) if nzuimm540 == 0 => {
-            println!("c.slli64 {}, {}", rd, rs1);
+            println!("c.slli64 {}", rd);
         },
         (OPCODE_C2, 0b000) => {
-            println!("c.slli {}, {}, #0x{:02X} ; {}", rd, rs1, nzuimm540, nzuimm540);
+            println!("c.slli {}, #0x{:02X} ; {}", rd, nzuimm540, nzuimm540);
         },
         (OPCODE_C2, 0b001) => {
             println!("c.fldsp {}, #0x{:02X} ; {}", rd, uimm54386, uimm54386);
@@ -235,7 +240,7 @@ fn dump_u16(src: u16, ptr: usize) {
                 (0, _, _) => println!("c.mv {}, {}", rd, rs2),
                 (1, 0, 0) => println!("c.ebreak"),
                 (1, _, 0) => println!("c.jalr {}", rs1),
-                (1, _, _) => println!("c.add {}, {}, {}", rd, rs1, rs2),
+                (1, _, _) => println!("c.add {}, {}", rd, rs2),
                 (_, _, _) => unreachable!()
             } 
         },
