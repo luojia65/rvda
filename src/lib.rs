@@ -325,7 +325,7 @@ fn dump_u32(src: u32, ptr: usize) {
                 FUNCT3_STORE_SW => "sw",
                 _ => unreachable!(),
             };
-            println!("{} {}, {}, #{}", name, rs1, rs2, imm11540);
+            println!("{} {}, {}({})", name, rs1, imm11540, rs2);
         },
         OPCODE_LOAD => {
             let name = match funct3 {
@@ -336,7 +336,7 @@ fn dump_u32(src: u32, ptr: usize) {
                 FUNCT3_LOAD_LHU => "lhu",
                 _ => unreachable!(),
             };
-            println!("{} {}, {}, #{}", name, rd, rs1, imm110);
+            println!("{} {}, {}({})", name, rd, imm110, rs1);
         },
         OPCODE_BRANCH => {
             let name = match funct3 {
